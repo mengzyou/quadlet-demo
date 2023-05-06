@@ -3,35 +3,68 @@
   become: true
 
   tasks:
-  - name: Upgrade all packages
-    ansible.builtin.package:
-      name: "*"
-      state: latest
-    register: result
-    retries: 5
-    until: result is success
+  # - name: Upgrade all packages
+  #   ansible.builtin.package:
+  #     name: "*"
+  #     state: latest
+  #   register: result
+  #   retries: 5
+  #   until: result is success
 
+  # - name: Install packages
+  #   ansible.builtin.package:
+  #     name:
+  #     - podman
+  #     - netavark
+  #     - aardvark-dns
+  #     - python310-cryptography
   - name: Install packages
-    ansible.builtin.package:
+    community.general.zypper:
       name:
       - podman
-      - python3-cryptography
-      - bash-completion
+      - netavark
+      - aardvark-dns
+      - python310-cryptography
+      state: present
+      update_cache: true
 
-  - name: Populate service facts
-    ansible.builtin.service_facts:
+  - name: Configure Podman
+    block:
+    - name: Set Network backend for Podman Container Engine
+      ansible.builtin.lineinfile:
+        path: /etc/containers/containers.conf
+        create: true
+        mode: '0644'
+        line: "{{ item }}"
+      with_items:
+      - '[network]'
+      - 'network_backend="netavark"'
+    - name: Set Register Mirrors
+      ansible.builtin.lineinfile:
+        path: /etc/containers/registries.conf
+        line: "{{ item }}"
+      with_items:
+      - '[[registry]]'
+      - 'location = "docker.io"'
+      - 'insecure = false'
+      - 'blocked = false'
+      - '[[registry.mirror]]'
+      - 'location = "dockerproxy.com"'
 
-  - name: Open Ports in firewalld
-    ansible.posix.firewalld:
-      port: "{{ item }}"
-      permanent: true
-      state: enabled
-    loop:
-    - 8000/tcp
-    - 9000/tcp
-    when:
-    - services['firewalld.service'] is defined
-    - services['firewalld.service']['state'] == 'running'
+  # - name: Populate service facts
+  #   ansible.builtin.service_facts:
+
+  # - name: Open Ports in firewalld
+  #   ansible.posix.firewalld:
+  #     port: "{{ item }}"
+  #     permanent: true
+  #     state: enabled
+  #   loop:
+  #   - 8000/tcp
+  #   - 9000/tcp
+  #   when:
+  #   - services['firewalld.service'] is defined
+  #   - services['firewalld.service']['state'] == 'running'
 
   - name: Create a podman secret for the self signed certificate
     block:
@@ -113,16 +146,16 @@
         skip_existing: true
         data: "{{ root_password }}"
 
-  - name: Create the Quadlet directory
-    ansible.builtin.file:
-      path: "{{ item }}"
-      state: directory
-      owner: root
-      group: root
-      mode: '0755'
-    loop:
-    - /etc/containers
-    - /etc/containers/systemd
+  # - name: Create the Quadlet directory
+  #   ansible.builtin.file:
+  #     path: "{{ item }}"
+  #     state: directory
+  #     owner: root
+  #     group: root
+  #     mode: '0755'
+  #   loop:
+  #   - /etc/containers
+  #   - /etc/containers/systemd
 
   - name: Copy the Quadlet files
     ansible.builtin.copy:
@@ -135,6 +168,14 @@
   - name: Run daemon reload to make Quadlet create the service files
     ansible.builtin.systemd:
       daemon_reload: true
+  
+  - name: Podman pull needed container images
+    containers.podman.podman_image:
+      name: "{{ item }}"
+    with_items:
+    - 'docker.io/library/mysql:5.6'
+    - 'docker.io/library/wordpress:4.8-apache'
+    - 'docker.io/envoyproxy/envoy:v1.25.0'
 
   - name: Start the Quadlet Demo Service
     ansible.builtin.systemd:
