@@ -1,25 +1,26 @@
-# Quadlet Demo
+# Podman Quadlet 演示
 
-Mimic the Kubernetes [Example: Deploying WordPress and MySQL with Persistent Volumes](https://kubernetes.io/docs/tutorials/stateful-application/mysql-wordpress-persistent-volume/) using Podman, Systemd and Quadlet
+使用Podman的Quadelet和Systemd来模仿Kubernetes示例：[使用持久卷部署WordPress和MySQL](https://kubernetes.io/docs/tutorials/stateful-application/mysql-wordpress-persistent-volume/)。  
 
-## Deploy the demo using Ansible
+## 使用Ansible部署示例
 
-- Start a target machine
-    - The demo was tested on a CentOS Stream 9 based EC2 instance
-- On your development machine:
-    - Install ansible
+- 启动目标机器
+    - 该演示在[openSUSE Tumbleweed](https://get.opensuse.org/tumbleweed/)通过测试。  
+- 在开发机器上:
+    - 安装Ansible
         ```
-        sudo dnf install ansible-core
+        sudo zypper in ansible
         ```
-    - Clone this repo
+    - 克隆该代码库
         ```
-        git clone https://github.com/ygalblum/quadlet-demo.git
+        git clone -b vg-suse https://github.com/mengzyou/quadlet-demo.git
+        cd quadlet-demo/
         ```
-    - Install the required Galaxy collections
+    - 安装依赖的Galaxy collections
         ```
         ansible-galaxy collection install -r requirements.yml
         ```
-    - Create the `inventory.yml` file:
+    - 创建Ansible主机配置文件 - `inventory.yml`:
         ```yaml
         all:
           hosts:
@@ -28,25 +29,28 @@ Mimic the Kubernetes [Example: Deploying WordPress and MySQL with Persistent Vol
               ansible_user: < Username to connect with >
               ansible_ssh_private_key_file: < Location of the private key >
         ```
-    - Run the playbook
+    - 运行playbook
         ```
-        ansible-playbook playbook.yml
+        ansible-playbook -i inventory.yml playbook.yml
         ```
     - Open the machine's URL in a browser, using port 8000 and `https://`
       and you should see the Wordpress setup page.
+    - 浏览器访问 `https://<IP of target machine>:8000/`，你将会看到Wordpress的安装配置页面。  
 
-## Deploy using Vagrant and libvirt
+## 使用Vagrant和libvirt部署
 
 This repository contains a Vagrantfile, that can be used to create a new
 virtual machine and deploy the quadlet-demo using Ansible.
+可以使用代码库里的 *Vagrantfile* ，使用vagrant创建一个libvirt类型的虚拟机（[opensuse/Tumbleweed.x86_64](https://app.vagrantup.com/opensuse/boxes/Tumbleweed.x86_64)的Box），然后直接通过ansible的插件直接部署该示例。  
 
-- You need vagrant and vagrant-libvirt.
-- Fetch the box, per default this is `generic/centos9s`,
-  using `vagrant box add generic/centos9s`.
-- Run `vagrant up`
+- 需要 vagrant 和 vagrant-libvirt
+  ```
+  sudo zypper in vagrant vagrant-libvirt
+  ```
+- 获取 `opensuse/Tumbleweed.x86_64` box的镜像  
+  ```
+  vagrant box add opensuse/Tumbleweed.x86_64
+  ```
+- 执行 `vagrant up`
 
-To reach the container from the machine running vagrant
-you need to find out the Vagrant VM's IP address, e.g.
-by using the vagrant address plugin or roaming through
-the Ansible inventory file in
-`.vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory`.
+运行完成之后，可以通过文件 `.vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory` 查看虚拟机的IP地址，然后浏览器访问 `https://<ip of vm>:8000/` 。  
